@@ -32,6 +32,11 @@ find_package(Ceres REQUIRED)
 ###################################
 ## catkin specific configuration ##
 ###################################
+add_message_files(
+  DIRECTORY msg
+  FILES ReferenceImage.msg
+)
+
 add_action_files(
   DIRECTORY action
   FILES DetectPallet.action

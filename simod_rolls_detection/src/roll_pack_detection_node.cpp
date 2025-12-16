@@ -157,40 +157,50 @@ class PacksDetectionNode
     } // lock released here
     ROS_INFO("roll_pack_detection_node: received images.");
 
-    const std::string reference_image_filename = goal.reference_image_filename;
-    const std::string reference_mask_filename = goal.reference_mask_filename;
-    const std::string reference_description_filename = goal.reference_description_filename;
-
-    cv::Mat reference_image;
-    m_log(1, "roll_pack_detection_node: Loading reference image " + reference_image_filename);
-    reference_image = cv::imread(reference_image_filename);
-    if (!reference_image.data)
+    PackDetection::ReferenceImageVector reference_images;
+    for (const simod_rolls_detection::ReferenceImage & reference_image_msg : goal.reference_images)
     {
-      m_log(3, "Could not read image!");
-      m_as->setAborted(simod_rolls_detection::DetectPacksResult());
-      return;
-    }
+      const std::string reference_image_filename = reference_image_msg.reference_image_filename;
+      const std::string reference_mask_filename = reference_image_msg.reference_mask_filename;
+      const std::string reference_description_filename = reference_image_msg.reference_description_filename;
 
-    cv::Mat reference_image_mask;
-    if (!reference_mask_filename.empty())
-    {
-      m_log(1, "roll_pack_detection_node: Loading reference mask image " + reference_mask_filename);
-      reference_image_mask = cv::imread(reference_mask_filename);
-      if (!reference_image_mask.data)
+      cv::Mat reference_image;
+      m_log(1, "roll_pack_detection_node: Loading reference image " + reference_image_filename);
+      reference_image = cv::imread(reference_image_filename);
+      if (!reference_image.data)
       {
         m_log(3, "Could not read image!");
         m_as->setAborted(simod_rolls_detection::DetectPacksResult());
         return;
       }
-    }
 
-    m_log(1, "Loading reference description " + reference_description_filename);
-    PackDetection::ReferencePointsPtr reference_points = PackDetection::LoadReferencePoints(reference_description_filename, m_log);
-    if (!reference_points)
-    {
-      m_log(3, "Could not read reference points!");
-      m_as->setAborted(simod_rolls_detection::DetectPacksResult());
-      return;
+      cv::Mat reference_image_mask;
+      if (!reference_mask_filename.empty())
+      {
+        m_log(1, "roll_pack_detection_node: Loading reference mask image " + reference_mask_filename);
+        reference_image_mask = cv::imread(reference_mask_filename, cv::IMREAD_GRAYSCALE);
+        if (!reference_image_mask.data)
+        {
+          m_log(3, "Could not read image!");
+          m_as->setAborted(simod_rolls_detection::DetectPacksResult());
+          return;
+        }
+      }
+
+      m_log(1, "Loading reference description " + reference_description_filename);
+      PackDetection::ReferencePointsPtr reference_points = PackDetection::LoadReferencePoints(reference_description_filename, m_log);
+      if (!reference_points)
+      {
+        m_log(3, "Could not read reference points!");
+        m_as->setAborted(simod_rolls_detection::DetectPacksResult());
+        return;
+      }
+
+      PackDetection::ReferenceImage ri;
+      ri.reference_image = reference_image;
+      ri.reference_mask = reference_image_mask;
+      ri.reference_points = *reference_points;
+      reference_images.push_back(ri);
     }
 
     Eigen::Affine3d camera_pose;
@@ -235,8 +245,8 @@ class PacksDetectionNode
                       );
 
     PackDetection::DetectedPackVector detected_packs =
-      rpd.FindMultipleObjects(rgb_image, depth_image, reference_image, reference_image_mask,
-                              *camera_info, camera_pose.cast<float>(), *reference_points);
+      rpd.FindMultipleObjects(rgb_image, depth_image, reference_images,
+                              *camera_info, camera_pose.cast<float>());
 
     ROS_INFO_STREAM("roll_pack_detection_node: found: " << detected_packs.size() << " packs.");
 
@@ -255,6 +265,9 @@ class PacksDetectionNode
 
       result.pack_height.push_back(detected_pack.height);
       result.pack_depth.push_back(detected_pack.depth);
+
+      result.pack_reference_id.push_back(detected_pack.reference_id);
+      result.is_upside_down.push_back(detected_pack.is_upside_down);
     }
 
     ROS_INFO("roll_pack_detection_node: action end.");

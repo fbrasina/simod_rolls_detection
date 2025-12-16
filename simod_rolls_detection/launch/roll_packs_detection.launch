@@ -1,7 +1,9 @@
 <launch>
   <!-- 0 2 3 5 7 8 9 -->
-  <arg name="image_id" default="2"/>
+  <arg name="image_id" default="9"/>
   <arg name="folder" default="bologna_29-07-25/Test Camera 29-07-25 Frontali"/>
+  <!--<arg name="folder" default="bologna_02-12-25/Test Camera 2-12-25" />-->
+  <!--<arg name="folder" default="bologna_02-12-25/Test Camera 2-12-25_2" />-->
   <arg name="use_real_camera" default="false" />
 
   <node pkg="simod_rolls_detection" type="roll_pack_detection_node" name="roll_pack_detection_node" output="screen">
@@ -40,6 +42,11 @@
     <param name="reference_image_filename" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference2.png" />
     <param name="reference_mask_filename" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference2_mask.png" />
     <param name="reference_description_filename" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference2_points.txt" />
+
+    <param name="reference_image_filename_1" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference4.png" />
+    <param name="reference_mask_filename_1" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference4_mask.png" />
+    <param name="reference_description_filename_1" type="string" value="$(find simod_rolls_detection)/data/sollevamento_pacchi_reference4_points.txt" />
+
     <param name="flip_image" type="bool" value="true" />
   </node>
 

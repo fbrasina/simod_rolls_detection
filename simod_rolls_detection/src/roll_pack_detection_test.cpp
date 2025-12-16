@@ -37,6 +37,8 @@ class RollPackDetectionTest
   typedef std::vector<float> FloatVector;
   typedef uint64_t uint64;
 
+  typedef std::vector<std::string> StringVector;
+
   template <typename T> static T SQR(const T & t) {return t * t; }
 
   struct CameraInfo
@@ -54,9 +56,38 @@ class RollPackDetectionTest
     m_nodeptr->param<std::string>("camera_info_filename", m_camera_info_file_name, "");
     m_nodeptr->param<std::string>("camera_pose_filename", m_camera_pose_file_name, "");
 
-    m_nodeptr->param<std::string>("reference_image_filename", m_reference_image_filename, "");
-    m_nodeptr->param<std::string>("reference_mask_filename", m_reference_mask_filename, "");
-    m_nodeptr->param<std::string>("reference_description_filename", m_reference_description_filename, "");
+    // no more than 10 reference images
+    // add suffixes _0, _1... etc. except for first one
+    for (int i = -1; i < 10; i++)
+    {
+      const std::string suffix = (i < 0) ? "" : ("_" + std::to_string(i));
+      std::string image_filename;
+      m_nodeptr->param<std::string>("reference_image_filename" + suffix, image_filename, "");
+      std::string image_mask_filename;
+      m_nodeptr->param<std::string>("reference_mask_filename" + suffix, image_mask_filename, "");
+      std::string image_points_filename;
+      m_nodeptr->param<std::string>("reference_description_filename" + suffix, image_points_filename, "");
+
+      if (image_filename == "")
+        continue;
+
+      if (image_mask_filename == "")
+      {
+        ROS_ERROR("reference_image_mask_filename is empty, even if image filename is %s", image_filename.c_str());
+        continue;
+      }
+
+      if (image_points_filename == "")
+      {
+        ROS_ERROR("reference_image_points_filename is empty, even if image points filename is %s", image_filename.c_str());
+        continue;
+      }
+
+      m_reference_image_filename.push_back(image_filename);
+      m_reference_mask_filename.push_back(image_mask_filename);
+      m_reference_description_filename.push_back(image_points_filename);
+    }
+
     m_nodeptr->param<bool>("flip_image", m_flip_image, true);
 
     m_nodeptr->param<bool>("use_real_camera", m_use_real_camera, false);
@@ -214,9 +245,15 @@ class RollPackDetectionTest
     }
 
     simod_rolls_detection::DetectPacksGoal goal;
-    goal.reference_image_filename = m_reference_image_filename;
-    goal.reference_mask_filename = m_reference_mask_filename;
-    goal.reference_description_filename = m_reference_description_filename;
+    for (uint64 i = 0; i < m_reference_image_filename.size(); i++)
+    {
+      simod_rolls_detection::ReferenceImage reference_image;
+      reference_image.reference_image_filename = m_reference_image_filename[i];
+      reference_image.reference_mask_filename = m_reference_mask_filename[i];
+      reference_image.reference_description_filename = m_reference_description_filename[i];
+      goal.reference_images.push_back(reference_image);
+    }
+
     goal.flip_image = m_flip_image;
 
     tf::poseEigenToMsg(camera_pose.cast<double>(), goal.camera_pose);
@@ -258,6 +295,9 @@ class RollPackDetectionTest
     FloatVector pack_depths;
     for (uint64 i = 0; i < result.pack_poses.size(); i++)
     {
+      ROS_INFO("roll_pack_detection_test: pack %d, type %d, is_upside_down: %s",
+               int(i), int(result.pack_reference_id[i]), (result.is_upside_down[i] ? "YES" : "NO"));
+
       Eigen::Affine3d pose;
       tf::poseMsgToEigen(result.pack_poses[i], pose);
       box_poses.push_back(pose);
@@ -386,9 +426,9 @@ class RollPackDetectionTest
   std::string m_depth_image_topic;
   std::string m_camera_info_topic;
 
-  std::string m_reference_image_filename;
-  std::string m_reference_mask_filename;
-  std::string m_reference_description_filename;
+  StringVector m_reference_image_filename;
+  StringVector m_reference_mask_filename;
+  StringVector m_reference_description_filename;
   bool m_flip_image;
 
   bool m_use_real_camera;

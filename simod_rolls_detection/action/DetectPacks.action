@@ -1,0 +1,17 @@
+# Goal
+geometry_msgs/Pose camera_pose
+
+simod_rolls_detection/ReferenceImage[] reference_images
+bool flip_image
+---
+# Result
+geometry_msgs/Pose[] pack_poses
+float64[] pack_edge_x_left
+float64[] pack_edge_x_right
+
+float64[] pack_height
+float64[] pack_depth
+int64[] pack_reference_id
+bool[] is_upside_down
+---
+# Feedback

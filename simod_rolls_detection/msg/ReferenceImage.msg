@@ -1,0 +1,3 @@
+string reference_image_filename
+string reference_mask_filename
+string reference_description_filename

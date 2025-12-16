@@ -11,7 +11,7 @@ find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 
 set(EXTRA_OPENCV_FILES "")
-if("${OpenCV_VERSION}" VERSION_LESS "4.6.0")
+if("${OpenCV_VERSION}" VERSION_LESS "4.5.0")
   set(EXTRA_OPENCV_FILES "sift/sift.cpp")
   add_definitions("-DEXTRA_SIFT_FILES")
 endif()

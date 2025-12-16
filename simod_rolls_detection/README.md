@@ -299,15 +299,17 @@ In summary, inputs of the node are:
 - A depth image.<br />**Note**: The depth image is optional. If it is not provided or all values are invalid (i.e., zero), only the RGB image will be used.
 - Intrinsic parameters of the camera (focal length, image center).
 - The camera pose with respect to a *base* reference frame.<br />**Note**: The Z axis of the *base* frame must be vertical, i.e. parallel to the front plane of the packs.
-- A color image template (*reference image*) of one of the packs, observed from the front.
-- An image mask of the image template (*reference mask*), with value 255 (white) where the template contains features of the pack, and 0 in regions where the features of the pack must be ignored.
-- A *reference description*, containing metadata about the reference image (see the "Reference description file" section below).
+- A set of image templates (*references*) of the packs, observed from the front. Each template is composed of:
+    - A color image template (*reference image*) of one of the packs, observed from the front.
+    - An image mask of the image template (*reference mask*), with value 255 (white) where the template contains features of the pack, and 0 in regions where the features of the pack must be ignored.
+    - A *reference description*, containing metadata about the reference image (see the "Reference description file" section below).
 
-The output of the algorithm is a list of packs in the *base* reference frame. Each pack is identified by:
+The output of the algorithm is a list of packs in the *base* reference frame. Each pack is described by:
 
 - The 3D pose of the central sub-pack.
 - Nominal width (x-axis), height (z-axis) and depth (y-axis) of the pack.
 - Distance of the left edge of the pack and of the right edge of the pack, with respect to the center of the pack, along the x-axis. These may be different from `width/2`, since the pack is deformable.
+- Index of the reference image which was matched to that pack.
 
 The `roll_pack_detection_node` uses RANSAC feature matching with SIFT features. The matched model is not the standard homography, but it also takes into account the pack deformation as horizontal and vertical translation of the sub-packs within the pack.
 
@@ -329,9 +331,10 @@ Main parameters of the node are:
 Detection is started by calling the `/detect_packs_action` action. The action is of type `simod_rolls_detection/DetectPacks.action`. The action goal contains these fields:
 
 - `camera_pose`: pose of the camera with respect to the *base* frame.
-- `reference_image_filename`: path of a color image containing the RGB reference image.
-- `reference_mask_filename`: path of a color image containing the mask of the reference image.
-- `reference_description_filename`: path of a file containing the metadata about the reference mask.
+- An array of reference images using the `simod_rolls_detection/ReferenceImage` message type. In turn, this message type has these fields:
+    - `reference_image_filename` (string): path of a color image containing the RGB reference image.
+    - `reference_mask_filename` (string): path of a color image containing the mask of the reference image.
+    - `reference_description_filename` (string): path of a file containing the metadata about the reference mask.
 - `flip_image` (bool): if the input RGB image must be rotated 180 degrees before matching. This should not affect accuracy as SIFT features are rotation-invariant, but in practice if your camera is upside down setting this to true may be an improvement.
 
 When the action is called, the node first waits for messages from the camera on the `rgb_image_topic`, `depth_image_topic` (optional), and `camera_info_topic` topics.
@@ -344,6 +347,8 @@ The the action result contains several array fields. The arrays have all the sam
 - `pack_edge_x_right` (array of float): distance of the right edge from the pack center, along the pack x-axis.
 - `pack_height` (array of float): nominal height of the pack.
 - `pack_depth` (array of float): nominal depth of the pack.
+- `pack_reference_id` (array of int): id of the reference image which was matched to this pack.
+- `is_upside_down` (array of bool): whether the pack was detected upright or upside down.
 
 **Reference description file**
 
@@ -396,8 +401,11 @@ The node reads the current camera pose with respect to the *base* reference fram
 - `world_frame_id`: name of the *base* TF frame.
 - `camera_frame_id`: name of the *camera* TF frame.
 - `use_real_camera`: see above.
-- `reference_image_filename`, `reference_mask_filename`, `reference_description_filename`, `flip_image`: see the `DetectPacks` action definition above.
+- `flip_image`: see the `DetectPacks` action definition above.
+- `reference_image_filename_X`, `reference_mask_filename_X`, `reference_description_filename_X`, where X is a number from `0` to `9`: the array of reference images, see the action definition above. <br />At most `10` reference images can be defined. <br />For backward compatibility, also the parameter names `reference_image_filename`, `reference_mask_filename` and `reference_description_filename` are supported.
 
 **Debug information**
 
-During the execution of the `roll_pack_detection_test` node, the detected packs are published as visualization markers to the topic `/detect_pack_markers`. For each pack, three TFs are also published, one in the pack center, one at the pack left edge and one at the pack right edge.
+During the execution of the `roll_pack_detection_test` node, the detected packs are published as visualization markers to the topic `/detect_pack_markers`. 
+
+For each pack, three TFs are also published, one in the pack center, one at the pack left edge and one at the pack right edge.
